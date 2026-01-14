@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, CURRENCY_SYMBOLS
 from .coordinator import PocketSmithDataUpdateCoordinator
 
 
@@ -81,9 +81,9 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
             
         account_name = account.get("name", "Account {}".format(account_id))
         
-        # Use account_id for stable entity_id
-        self._attr_unique_id = "{}_account_{}".format(DOMAIN, account_id)
-        self.entity_id = "sensor.{}_account_{}".format(DOMAIN, account_id)
+        # Use entry_id in unique_id and entity_id for multi-instance support
+        self._attr_unique_id = "{}_{}_account_{}".format(DOMAIN, coordinator.entry_id, account_id)
+        self.entity_id = "sensor.{}_{}_account_{}".format(DOMAIN, coordinator.entry_id, account_id)
         
         # Friendly name uses institution and account name
         self._attr_name = "PocketSmith {} {}".format(institution, account_name)
@@ -116,9 +116,16 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
         else:
             institution_name = str(institution_data) if institution_data else None
         
+        # Get currency and symbol
+        currency_code = account.get("currency_code")
+        currency_symbol = None
+        if currency_code:
+            currency_symbol = CURRENCY_SYMBOLS.get(currency_code.upper())
+        
         attributes = {
             "current_balance": account.get("current_balance"),
-            "currency": account.get("currency_code"),
+            "currency": currency_code,
+            "currency_symbol": currency_symbol,
             "institution_name": institution_name,
             "account_name": account.get("name"),
             "last_updated": datetime.now().isoformat(),
@@ -169,9 +176,9 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
             
         account_name = ta.get("name", "Account {}".format(ta_id))
         
-        # Use transaction account ID for stable entity_id
-        self._attr_unique_id = "{}_transactions_{}".format(DOMAIN, ta_id)
-        self.entity_id = "sensor.{}_transactions_{}".format(DOMAIN, ta_id)
+        # Use entry_id in unique_id and entity_id for multi-instance support
+        self._attr_unique_id = "{}_{}_transactions_{}".format(DOMAIN, coordinator.entry_id, ta_id)
+        self.entity_id = "sensor.{}_{}_transactions_{}".format(DOMAIN, coordinator.entry_id, ta_id)
         
         # Friendly name uses institution and account name
         self._attr_name = "PocketSmith {} {} Transactions".format(institution, account_name)
@@ -197,10 +204,17 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
         else:
             institution_name = str(institution_data) if institution_data else None
         
+        # Get currency and symbol
+        currency_code = ta.get("currency_code")
+        currency_symbol = None
+        if currency_code:
+            currency_symbol = CURRENCY_SYMBOLS.get(currency_code.upper())
+        
         attributes = {
             "account_name": ta.get("name"),
             "institution_name": institution_name,
-            "currency": ta.get("currency_code"),
+            "currency": currency_code,
+            "currency_symbol": currency_symbol,
             "transaction_count": len(transactions),
             "last_updated": datetime.now().isoformat(),
             "transactions": [],
@@ -241,8 +255,9 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         """Initialize the uncategorized transactions sensor."""
         super().__init__(coordinator)
-        self._attr_unique_id = "{}_uncategorized_transactions".format(DOMAIN)
-        self.entity_id = "sensor.{}_uncategorized_transactions".format(DOMAIN)
+        # Use entry_id for multi-instance support
+        self._attr_unique_id = "{}_{}_uncategorized_transactions".format(DOMAIN, coordinator.entry_id)
+        self.entity_id = "sensor.{}_{}_uncategorized_transactions".format(DOMAIN, coordinator.entry_id)
         self._attr_name = "PocketSmith Uncategorized Transactions"
 
     @property
@@ -309,3 +324,5 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
                 attributes["total_uncategorized"] += uncategorized_count
         
         return attributes
+
+

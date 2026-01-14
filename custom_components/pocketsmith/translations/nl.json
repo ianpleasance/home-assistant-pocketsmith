@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "PocketSmith-configuratie",
+        "description": "Voer uw PocketSmith API-sleutel in. U kunt er een genereren op https://my.pocketsmith.com/developer",
+        "data": {
+          "api_key": "API-sleutel",
+          "scan_interval": "Verversingsinterval (minuten)"
+        },
+        "data_description": {
+          "api_key": "Uw PocketSmith-ontwikkelaarssleutel",
+          "scan_interval": "Hoe vaak gegevens van PocketSmith worden opgehaald (1-1440 minuten, standaard: 5)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbinding met PocketSmith API mislukt",
+      "invalid_auth": "Ongeldige API-sleutel",
+      "unknown": "Onverwachte fout opgetreden"
+    },
+    "abort": {
+      "already_configured": "Dit PocketSmith-account is al geconfigureerd"
+    }
+  }
+}

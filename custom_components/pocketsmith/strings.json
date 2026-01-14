@@ -5,7 +5,12 @@
         "title": "PocketSmith Setup",
         "description": "Enter your PocketSmith API key. You can generate one at https://my.pocketsmith.com/developer",
         "data": {
-          "api_key": "API Key"
+          "api_key": "API Key",
+          "scan_interval": "Refresh Interval (minutes)"
+        },
+        "data_description": {
+          "api_key": "Your PocketSmith API Developer Key",
+          "scan_interval": "How often to fetch data from PocketSmith (1-1440 minutes, default: 5)"
         }
       }
     },

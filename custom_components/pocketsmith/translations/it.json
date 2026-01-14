@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurazione PocketSmith",
+        "description": "Inserisci la tua chiave API PocketSmith. Puoi generarne una su https://my.pocketsmith.com/developer",
+        "data": {
+          "api_key": "Chiave API",
+          "scan_interval": "Intervallo di aggiornamento (minuti)"
+        },
+        "data_description": {
+          "api_key": "La tua chiave sviluppatore PocketSmith",
+          "scan_interval": "Frequenza di recupero dati da PocketSmith (1-1440 minuti, predefinito: 5)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile connettersi all'API PocketSmith",
+      "invalid_auth": "Chiave API non valida",
+      "unknown": "Errore imprevisto"
+    },
+    "abort": {
+      "already_configured": "Questo account PocketSmith è già configurato"
+    }
+  }
+}

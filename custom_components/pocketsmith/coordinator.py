@@ -23,10 +23,13 @@ class PocketSmithDataUpdateCoordinator(DataUpdateCoordinator):
         hass: HomeAssistant,
         session: aiohttp.ClientSession,
         api_key: str,
+        update_interval: timedelta,
+        entry_id: str,
     ) -> None:
         """Initialize coordinator."""
         self.session = session
         self.api_key = api_key
+        self.entry_id = entry_id
         # PocketSmith uses X-Developer-Key header, not Bearer token
         self.headers = {"X-Developer-Key": api_key}
 
@@ -34,7 +37,7 @@ class PocketSmithDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="PocketSmith",
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+            update_interval=update_interval,
         )
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -45,16 +48,16 @@ class PocketSmithDataUpdateCoordinator(DataUpdateCoordinator):
             # Fetch user information
             _LOGGER.debug("Fetching user information from /me")
             user_data = await self._fetch_endpoint("me")
-            _LOGGER.debug("Successfully fetched user data: %s", user_data.get("login", "unknown"))
-
-            # Fetch accounts
             user_id = user_data.get("id")
-            _LOGGER.debug("Fetching accounts from /users/{}/accounts".format(user_id))
+            _LOGGER.debug("Successfully fetched user data: %s (ID: %s)", user_data.get("login", "unknown"), user_id)
+
+            # Fetch accounts using user ID
+            _LOGGER.debug("Fetching accounts from /users/%s/accounts", user_id)
             accounts = await self._fetch_endpoint("users/{}/accounts".format(user_id))
             _LOGGER.debug("Successfully fetched %d accounts", len(accounts))
 
-            # Fetch transactions summary
-            _LOGGER.debug("Fetching transaction accounts from /users/{}/transaction_accounts".format(user_id))
+            # Fetch transaction accounts using user ID
+            _LOGGER.debug("Fetching transaction accounts from /users/%s/transaction_accounts", user_id)
             transaction_accounts = await self._fetch_endpoint("users/{}/transaction_accounts".format(user_id))
             _LOGGER.debug("Successfully fetched %d transaction accounts", len(transaction_accounts))
 
@@ -65,7 +68,7 @@ class PocketSmithDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Fetching transactions for account %s", ta_id)
                 try:
                     transactions = await self._fetch_endpoint(
-                        f"transaction_accounts/{ta_id}/transactions?per_page=20"
+                        "transaction_accounts/{}/transactions?per_page=20".format(ta_id)
                     )
                     transactions_by_account[ta_id] = transactions
                     _LOGGER.debug("Fetched %d transactions for account %s", len(transactions), ta_id)
@@ -93,14 +96,14 @@ class PocketSmithDataUpdateCoordinator(DataUpdateCoordinator):
             raise
         except aiohttp.ClientError as err:
             _LOGGER.error("Network error communicating with PocketSmith API: %s", err, exc_info=True)
-            raise UpdateFailed(f"Error communicating with API: {err}") from err
+            raise UpdateFailed("Error communicating with API: {}".format(err)) from err
         except Exception as err:
             _LOGGER.error("Unexpected error during data fetch: %s", err, exc_info=True)
-            raise UpdateFailed(f"Unexpected error: {err}") from err
+            raise UpdateFailed("Unexpected error: {}".format(err)) from err
 
     async def _fetch_endpoint(self, endpoint: str) -> Any:
         """Fetch data from a specific endpoint."""
-        url = f"{API_BASE_URL}/{endpoint}"
+        url = "{}/{}".format(API_BASE_URL, endpoint)
         
         _LOGGER.debug("Fetching endpoint: %s", url)
 
@@ -120,7 +123,7 @@ class PocketSmithDataUpdateCoordinator(DataUpdateCoordinator):
                         response_text[:200]
                     )
                     raise UpdateFailed(
-                        f"Error fetching {endpoint}: HTTP {status}"
+                        "Error fetching {}: HTTP {}".format(endpoint, status)
                     )
                 
                 data = await response.json()

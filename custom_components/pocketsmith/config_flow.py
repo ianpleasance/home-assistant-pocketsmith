@@ -14,13 +14,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, API_BASE_URL
+from .const import DOMAIN, API_BASE_URL, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_API_KEY): str,
+        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=1440)
+        ),
     }
 )
 
@@ -32,6 +35,7 @@ async def validate_api_key(hass: HomeAssistant, api_key: str) -> dict[str, Any]:
     # Strip any whitespace from API key
     api_key = api_key.strip()
     
+    # PocketSmith uses X-Developer-Key header, not Bearer token
     headers = {"X-Developer-Key": api_key}
 
     _LOGGER.debug("Validating PocketSmith API key")
@@ -40,7 +44,7 @@ async def validate_api_key(hass: HomeAssistant, api_key: str) -> dict[str, Any]:
 
     try:
         async with session.get(
-            f"{API_BASE_URL}/me", 
+            "{}/me".format(API_BASE_URL), 
             headers=headers, 
             timeout=aiohttp.ClientTimeout(total=10),
             raise_for_status=False  # Don't raise on 4xx/5xx, handle manually
@@ -66,15 +70,15 @@ async def validate_api_key(hass: HomeAssistant, api_key: str) -> dict[str, Any]:
             
             if status >= 500:
                 _LOGGER.error("PocketSmith API server error: %s", status)
-                raise CannotConnect(f"PocketSmith API returned {status}")
+                raise CannotConnect("PocketSmith API returned {}".format(status))
             
             if status >= 400:
                 _LOGGER.error("Client error %s: %s", status, response_text[:200])
-                raise InvalidAuth(f"API returned error {status}")
+                raise InvalidAuth("API returned error {}".format(status))
             
             if status != 200:
                 _LOGGER.error("Unexpected status code: %s", status)
-                raise CannotConnect(f"Unexpected status {status}")
+                raise CannotConnect("Unexpected status {}".format(status))
 
             # Parse JSON response
             try:
@@ -84,7 +88,10 @@ async def validate_api_key(hass: HomeAssistant, api_key: str) -> dict[str, Any]:
                 raise CannotConnect("Invalid response from PocketSmith API")
             
             _LOGGER.debug("Successfully validated API key for user: %s", data.get("login", "unknown"))
-            return {"title": data.get("login", "PocketSmith")}
+            return {
+                "title": data.get("login", "PocketSmith"),
+                "user_id": str(data.get("id", "")),
+            }
 
     except InvalidAuth:
         # Re-raise our custom auth errors
@@ -97,10 +104,10 @@ async def validate_api_key(hass: HomeAssistant, api_key: str) -> dict[str, Any]:
         raise CannotConnect("Timeout connecting to PocketSmith API") from err
     except aiohttp.ClientError as err:
         _LOGGER.error("Network error connecting to PocketSmith API: %s", err)
-        raise CannotConnect(f"Network error: {err}") from err
+        raise CannotConnect("Network error: {}".format(err)) from err
     except Exception as err:
         _LOGGER.error("Unexpected error validating API key: %s", err, exc_info=True)
-        raise CannotConnect(f"Unexpected error: {err}") from err
+        raise CannotConnect("Unexpected error: {}".format(err)) from err
 
 
 class PocketSmithConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -125,10 +132,14 @@ class PocketSmithConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                await self.async_set_unique_id(user_input[CONF_API_KEY][:16])
+                # Use user email/login as unique_id for multi-instance support
+                await self.async_set_unique_id(info["user_id"])
                 self._abort_if_unique_id_configured()
 
-                return self.async_create_entry(title=info["title"], data=user_input)
+                return self.async_create_entry(
+                    title="PocketSmith - {}".format(info["title"]), 
+                    data=user_input
+                )
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors

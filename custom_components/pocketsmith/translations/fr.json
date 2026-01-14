@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuration PocketSmith",
+        "description": "Entrez votre clé API PocketSmith. Vous pouvez en générer une sur https://my.pocketsmith.com/developer",
+        "data": {
+          "api_key": "Clé API",
+          "scan_interval": "Intervalle de rafraîchissement (minutes)"
+        },
+        "data_description": {
+          "api_key": "Votre clé développeur PocketSmith",
+          "scan_interval": "Fréquence de récupération des données depuis PocketSmith (1-1440 minutes, par défaut : 5)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Échec de connexion à l'API PocketSmith",
+      "invalid_auth": "Clé API invalide",
+      "unknown": "Erreur inattendue"
+    },
+    "abort": {
+      "already_configured": "Ce compte PocketSmith est déjà configuré"
+    }
+  }
+}
