@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "PocketSmith Setup",
+        "description": "Enter your PocketSmith API key. You can generate one at https://my.pocketsmith.com/developer",
+        "data": {
+          "api_key": "API Key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to PocketSmith API",
+      "invalid_auth": "Invalid API key",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This PocketSmith account is already configured"
+    }
+  }
+}

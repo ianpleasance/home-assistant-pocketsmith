@@ -1,0 +1,7 @@
+{
+  "name": "PocketSmith",
+  "content_in_root": false,
+  "filename": "pocketsmith",
+  "render_readme": true,
+  "domains": ["pocketsmith"]
+}
