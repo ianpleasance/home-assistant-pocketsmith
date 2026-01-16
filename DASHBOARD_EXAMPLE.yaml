@@ -1,235 +1,271 @@
 views:
-  - title: PocketSmith
-    path: pocketsmith
-    icon: mdi:wallet
+  - title: PocketSmith Simple
+    path: pocketsmith-simple
+    icon: mdi:wallet-outline
     badges: []
     cards:
-      - type: horizontal-stack
-        cards:
-          - type: entity
-            entity: sensor.pocketsmith_account_4546611
-            name: Amex
-            icon: mdi:credit-card
-          - type: entity
-            entity: sensor.pocketsmith_account_4546653
-            name: Mastercard
-            icon: mdi:credit-card
-          - type: entity
-            entity: sensor.pocketsmith_account_4546656
-            name: Bank Account
-            icon: mdi:bank
-      - type: conditional
-        conditions:
-          - entity: sensor.pocketsmith_uncategorized_transactions
-            state_not: '0'
-        card:
-          type: entity
-          entity: sensor.pocketsmith_uncategorized_transactions
-          name: Uncategorized Transactions (Last 20 per account)
-          icon: mdi:alert-circle
-      - type: grid
-        columns: 2
-        square: false
-        cards:
-          - type: entities
-            title: American Express
-            entities:
-              - entity: sensor.pocketsmith_account_4546611
-                name: Balance
-                icon: mdi:cash
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546611
-                attribute: current_balance_date
-                name: As of
-                icon: mdi:calendar
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546611
-                attribute: account_type
-                name: Type
-                icon: mdi:credit-card-outline
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546611
-                attribute: last_updated
-                name: Last Updated
-                icon: mdi:clock-outline
-          - type: entities
-            title: Natwest Mastercard
-            entities:
-              - entity: sensor.pocketsmith_account_4546653
-                name: Balance
-                icon: mdi:cash
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546653
-                attribute: current_balance_date
-                name: As of
-                icon: mdi:calendar
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546653
-                attribute: account_type
-                name: Type
-                icon: mdi:credit-card-outline
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546653
-                attribute: last_updated
-                name: Last Updated
-                icon: mdi:clock-outline
-          - type: entities
-            title: Natwest Bank Account
-            entities:
-              - entity: sensor.pocketsmith_account_4546656
-                name: Balance
-                icon: mdi:cash
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546656
-                attribute: current_balance_date
-                name: As of
-                icon: mdi:calendar
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546656
-                attribute: account_type
-                name: Type
-                icon: mdi:bank-outline
-              - type: attribute
-                entity: sensor.pocketsmith_account_4546656
-                attribute: last_updated
-                name: Last Updated
-                icon: mdi:clock-outline
-          - type: markdown
-            title: Uncategorized by Account
-            content: >
-              {% set uncat =
-              state_attr('sensor.pocketsmith_uncategorized_transactions',
-              'by_account') %}
-
-              {% if uncat %}
-                {% for account_key, details in uncat.items() %}
-              **{{ details.institution }} - {{ details.account_name }}**
-
-              - {{ details.count }} uncategorized transaction(s)
-                {% endfor %}
-              {% else %}
-
-              ✅ All transactions categorized!
-
-              {% endif %}
       - type: markdown
-        title: American Express - Recent Transactions
+        title: 💳 NatWest Primary Account
         content: >
+          {% set account =
+          'sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_account_4546656' %}
+
           {% set transactions =
-          state_attr('sensor.pocketsmith_transactions_4546611', 'transactions')
-          %}
+          state_attr('sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_transactions_4546656',
+          'transactions') %}
+
+          {% set symbol = state_attr(account, 'currency_symbol') or
+          state_attr(account, 'currency') %}
+
+
+          **Balance: {{ symbol }}{{ states(account) }}**
+
 
           {% if transactions %}
 
-          | Date | Payee | Amount |
+          **Recent Transactions:**
 
-          |------|-------|--------|
-            {% for t in transactions[:10] %}
-          | {{ t.date }} | {{ t.payee }} | £{{ "%.2f"|format(t.amount) }} |
-            {% endfor %}
+          {% for t in transactions[:5] -%}
+
+          • {{ t.date }} - {{ t.payee[:40] }} - {{ symbol }}{{
+          "%.2f"|format(t.amount) }}
+
+          {% endfor %}
+
           {% else %}
 
-          No transactions available
+          No recent transactions
 
           {% endif %}
       - type: markdown
-        title: Natwest Mastercard - Recent Transactions
+        title: 💳 Monzo Personal Account
         content: >
+          {% set account =
+          'sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_account_4574043' %}
+
           {% set transactions =
-          state_attr('sensor.pocketsmith_transactions_4546653', 'transactions')
-          %}
+          state_attr('sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_transactions_4574043',
+          'transactions') %}
+
+          {% set symbol = state_attr(account, 'currency_symbol') or
+          state_attr(account, 'currency') %}
+
+
+          **Balance: {{ symbol }}{{ states(account) }}**
+
 
           {% if transactions %}
 
-          | Date | Payee | Amount |
+          **Recent Transactions:**
 
-          |------|-------|--------|
-            {% for t in transactions[:10] %}
-          | {{ t.date }} | {{ t.payee }} | £{{ "%.2f"|format(t.amount) }} |
-            {% endfor %}
+          {% for t in transactions[:5] -%}
+
+          • {{ t.date }} - {{ t.payee[:40] }} - {{ symbol }}{{
+          "%.2f"|format(t.amount) }}
+
+          {% endfor %}
+
           {% else %}
 
-          No transactions available
+          No recent transactions
 
           {% endif %}
       - type: markdown
-        title: Natwest Bank Account - Recent Transactions
+        title: 🐷 Monzo Savings
         content: >
+          {% set account =
+          'sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_account_4574040' %}
+
           {% set transactions =
-          state_attr('sensor.pocketsmith_transactions_4546656', 'transactions')
-          %}
+          state_attr('sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_transactions_4574040',
+          'transactions') %}
+
+          {% set symbol = state_attr(account, 'currency_symbol') or
+          state_attr(account, 'currency') %}
+
+
+          **Balance: {{ symbol }}{{ states(account) }}**
+
 
           {% if transactions %}
 
-          | Date | Payee | Amount |
+          **Recent Transactions:**
 
-          |------|-------|--------|
-            {% for t in transactions[:10] %}
-          | {{ t.date }} | {{ t.payee }} | £{{ "%.2f"|format(t.amount) }} |
-            {% endfor %}
+          {% for t in transactions[:5] -%}
+
+          • {{ t.date }} - {{ t.payee[:40] }} - {{ symbol }}{{
+          "%.2f"|format(t.amount) }}
+
+          {% endfor %}
+
           {% else %}
 
-          No transactions available
+          No recent transactions
 
           {% endif %}
       - type: markdown
-        title: Recent Spending Summary
+        title: 💳 Revolut (GBP)
         content: >
-          {% set amex_trans =
-          state_attr('sensor.pocketsmith_transactions_4546611', 'transactions')
-          %}
+          {% set account =
+          'sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_account_4571421' %}
 
-          {% set mc_trans =
-          state_attr('sensor.pocketsmith_transactions_4546653', 'transactions')
-          %}
+          {% set transactions =
+          state_attr('sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_transactions_4571421',
+          'transactions') %}
 
-          {% set bank_trans =
-          state_attr('sensor.pocketsmith_transactions_4546656', 'transactions')
-          %}
+          {% set symbol = state_attr(account, 'currency_symbol') or
+          state_attr(account, 'currency') %}
 
 
-          {% set amex_spend = namespace(total=0) %}
+          **Balance: {{ symbol }}{{ states(account) }}**
 
-          {% if amex_trans %}
-            {% for t in amex_trans %}
-              {% if t.amount < 0 %}
-                {% set amex_spend.total = amex_spend.total + (t.amount | float | abs) %}
-              {% endif %}
-            {% endfor %}
+
+          {% if transactions %}
+
+          **Recent Transactions:**
+
+          {% for t in transactions[:5] -%}
+
+          • {{ t.date }} - {{ t.payee[:40] }} - {{ symbol }}{{
+          "%.2f"|format(t.amount) }}
+
+          {% endfor %}
+
+          {% else %}
+
+          No recent transactions
+
           {% endif %}
+      - type: markdown
+        title: 💶 Revolut (EUR)
+        content: >
+          {% set account =
+          'sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_account_4571418' %}
+
+          {% set transactions =
+          state_attr('sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_transactions_4571418',
+          'transactions') %}
+
+          {% set symbol = state_attr(account, 'currency_symbol') or
+          state_attr(account, 'currency') %}
 
 
-          {% set mc_spend = namespace(total=0) %}
+          **Balance: {{ symbol }}{{ states(account) }}**
 
-          {% if mc_trans %}
-            {% for t in mc_trans %}
-              {% if t.amount < 0 %}
-                {% set mc_spend.total = mc_spend.total + (t.amount | float | abs) %}
-              {% endif %}
-            {% endfor %}
+
+          {% if transactions %}
+
+          **Recent Transactions:**
+
+          {% for t in transactions[:5] -%}
+
+          • {{ t.date }} - {{ t.payee[:40] }} - {{ symbol }}{{
+          "%.2f"|format(t.amount) }}
+
+          {% endfor %}
+
+          {% else %}
+
+          No recent transactions
+
           {% endif %}
+      - type: markdown
+        title: 💵 Revolut (USD)
+        content: >
+          {% set account =
+          'sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_account_4571424' %}
+
+          {% set transactions =
+          state_attr('sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_transactions_4571424',
+          'transactions') %}
+
+          {% set symbol = state_attr(account, 'currency_symbol') or
+          state_attr(account, 'currency') %}
 
 
-          {% set bank_spend = namespace(total=0) %}
+          **Balance: {{ symbol }}{{ states(account) }}**
 
-          {% if bank_trans %}
-            {% for t in bank_trans %}
-              {% if t.amount < 0 %}
-                {% set bank_spend.total = bank_spend.total + (t.amount | float | abs) %}
-              {% endif %}
-            {% endfor %}
+
+          {% if transactions %}
+
+          **Recent Transactions:**
+
+          {% for t in transactions[:5] -%}
+
+          • {{ t.date }} - {{ t.payee[:40] }} - {{ symbol }}{{
+          "%.2f"|format(t.amount) }}
+
+          {% endfor %}
+
+          {% else %}
+
+          No recent transactions
+
           {% endif %}
+      - type: markdown
+        title: 💳 American Express
+        content: >
+          {% set account =
+          'sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_account_4546611' %}
+
+          {% set transactions =
+          state_attr('sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_transactions_4546611',
+          'transactions') %}
+
+          {% set symbol = state_attr(account, 'currency_symbol') or
+          state_attr(account, 'currency') %}
 
 
-          **Recent Spending (Last 20 transactions)**
+          **Balance: {{ symbol }}{{ states(account) }}**
 
 
-          - **American Express:** £{{ "%.2f"|format(amex_spend.total) }}
+          {% if transactions %}
 
-          - **Natwest Mastercard:** £{{ "%.2f"|format(mc_spend.total) }}
+          **Recent Transactions:**
 
-          - **Bank Account:** £{{ "%.2f"|format(bank_spend.total) }}
+          {% for t in transactions[:5] -%}
 
-          - **Total:** £{{ "%.2f"|format(amex_spend.total + mc_spend.total +
-          bank_spend.total) }}
+          • {{ t.date }} - {{ t.payee[:40] }} - {{ symbol }}{{
+          "%.2f"|format(t.amount) }}
+
+          {% endfor %}
+
+          {% else %}
+
+          No recent transactions
+
+          {% endif %}
+      - type: markdown
+        title: 💳 NatWest Mastercard
+        content: >
+          {% set account =
+          'sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_account_4546653' %}
+
+          {% set transactions =
+          state_attr('sensor.pocketsmith_01kez6197kh7b8ezepwe2tnbcp_transactions_4546653',
+          'transactions') %}
+
+          {% set symbol = state_attr(account, 'currency_symbol') or
+          state_attr(account, 'currency') %}
+
+
+          **Balance: {{ symbol }}{{ states(account) }}**
+
+
+          {% if transactions %}
+
+          **Recent Transactions:**
+
+          {% for t in transactions[:5] -%}
+
+          • {{ t.date }} - {{ t.payee[:40] }} - {{ symbol }}{{
+          "%.2f"|format(t.amount) }}
+
+          {% endfor %}
+
+          {% else %}
+
+          No recent transactions
+
+          {% endif %}
 
