@@ -2,25 +2,31 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configuração do PocketSmith",
-        "description": "Insira sua chave API do PocketSmith. Você pode gerar uma em https://my.pocketsmith.com/developer",
+        "title": "PocketSmith-opsætning",
+        "description": "Indtast din PocketSmith API-nøgle. Du kan generere en på https://my.pocketsmith.com/developer",
         "data": {
-          "api_key": "Chave API",
-          "scan_interval": "Intervalo de atualização (minutos)"
+          "api_key": "API-nøgle",
+          "scan_interval": "Opdateringsinterval (minutter)"
         },
         "data_description": {
-          "api_key": "Sua chave de desenvolvedor do PocketSmith",
-          "scan_interval": "Frequência de obtenção de dados do PocketSmith (1-1440 minutos, padrão: 5)"
+          "api_key": "Din PocketSmith-udviklingsnøgle",
+          "scan_interval": "Hvor ofte data hentes fra PocketSmith (1-1440 minutter, standard: 5)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Falha ao conectar à API do PocketSmith",
-      "invalid_auth": "Chave API inválida",
-      "unknown": "Erro inesperado"
+      "cannot_connect": "Kunne ikke oprette forbindelse til PocketSmith API",
+      "invalid_auth": "Ugyldig API-nøgle",
+      "unknown": "Uventet fejl opstod"
     },
     "abort": {
-      "already_configured": "Esta conta PocketSmith já está configurada"
+      "already_configured": "Denne PocketSmith-konto er allerede konfigureret"
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Opdater PocketSmith-data",
+      "description": "Opdater manuelt alle PocketSmith-kontodata og transaktioner"
     }
   }
 }

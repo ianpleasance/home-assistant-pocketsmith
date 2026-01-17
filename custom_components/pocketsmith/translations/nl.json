@@ -22,5 +22,11 @@
     "abort": {
       "already_configured": "Dit PocketSmith-account is al geconfigureerd"
     }
+  },
+  "services": {
+    "refresh": {
+      "name": "PocketSmith-gegevens vernieuwen",
+      "description": "Alle PocketSmith-accountgegevens en transacties handmatig vernieuwen"
+    }
   }
 }

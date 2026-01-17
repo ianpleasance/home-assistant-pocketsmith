@@ -68,11 +68,13 @@ The integration creates sensors for each account:
 
 ### Account Balance Sensors
 
-**Entity ID Format**: `sensor.pocketsmith_{entry_id}_account_{account_id}`
+**Entity ID Format**: `sensor.pocketsmith_{short_entry_id}_account_{account_id}`
+
+The `short_entry_id` is the first 8 characters of your config entry ID, keeping entity IDs cleaner while maintaining multi-instance support.
 
 For example:
-- `sensor.pocketsmith_abc123_account_4546611`
-- `sensor.pocketsmith_abc123_account_4546653`
+- `sensor.pocketsmith_01kez619_account_4546611`
+- `sensor.pocketsmith_01kez619_account_4546653`
 
 **Friendly Name**: Automatically set to `PocketSmith {Institution} {Account Name}`
 - Example: "PocketSmith American Express British Airways Card"
@@ -98,11 +100,11 @@ For example:
 
 ### Transaction History Sensors
 
-**Entity ID Format**: `sensor.pocketsmith_{entry_id}_transactions_{account_id}`
+**Entity ID Format**: `sensor.pocketsmith_{short_entry_id}_transactions_{account_id}`
 
 For example:
-- `sensor.pocketsmith_abc123_transactions_4546611`
-- `sensor.pocketsmith_abc123_transactions_4546653`
+- `sensor.pocketsmith_01kez619_transactions_4546611`
+- `sensor.pocketsmith_01kez619_transactions_4546653`
 
 **Friendly Name**: Automatically set to `PocketSmith {Institution} {Account Name} Transactions`
 
@@ -125,7 +127,7 @@ For example:
 
 ### Uncategorized Transactions Sensor
 
-**Entity ID**: `sensor.pocketsmith_{entry_id}_uncategorized_transactions`
+**Entity ID**: `sensor.pocketsmith_{short_entry_id}_uncategorized_transactions`
 
 **State**: Total number of uncategorized transactions (from last 20 per account)
 
@@ -181,11 +183,36 @@ The integration UI is available in:
 
 ## Usage Examples
 
+### Manual Refresh Service
+
+You can manually refresh all PocketSmith data using the service:
+
+```yaml
+service: pocketsmith.refresh
+```
+
+This is useful when you want to immediately update account balances and transactions without waiting for the next automatic refresh.
+
+**In automation:**
+```yaml
+automation:
+  - alias: "Refresh PocketSmith before daily report"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    action:
+      - service: pocketsmith.refresh
+      - delay: "00:00:05"  # Wait for refresh to complete
+      - service: notify.mobile_app
+        data:
+          message: "PocketSmith data refreshed!"
+```
+
 ### Display Account Balance in Lovelace
 
 ```yaml
 type: entity
-entity: sensor.pocketsmith_abc123_account_4546611
+entity: sensor.pocketsmith_01kez619_account_4546611
 ```
 
 ### Create a Dashboard Card
@@ -194,9 +221,9 @@ entity: sensor.pocketsmith_abc123_account_4546611
 type: entities
 title: PocketSmith Accounts
 entities:
-  - sensor.pocketsmith_abc123_account_4546611
-  - sensor.pocketsmith_abc123_account_4546653
-  - sensor.pocketsmith_abc123_account_4546656
+  - sensor.pocketsmith_01kez619_account_4546611
+  - sensor.pocketsmith_01kez619_account_4546653
+  - sensor.pocketsmith_01kez619_account_4546656
 ```
 
 ### View Transaction History with Currency Symbols
@@ -205,8 +232,8 @@ entities:
 type: markdown
 title: Recent Transactions
 content: |
-  {% set transactions = state_attr('sensor.pocketsmith_abc123_transactions_4546611', 'transactions') %}
-  {% set symbol = state_attr('sensor.pocketsmith_abc123_account_4546611', 'currency_symbol') %}
+  {% set transactions = state_attr('sensor.pocketsmith_01kez619_transactions_4546611', 'transactions') %}
+  {% set symbol = state_attr('sensor.pocketsmith_01kez619_account_4546611', 'currency_symbol') %}
   {% for transaction in transactions %}
   - **{{ transaction.date }}**: {{ transaction.payee }} - {{ symbol }}{{ "%.2f"|format(transaction.amount) }}
   {% endfor %}
@@ -219,12 +246,12 @@ automation:
   - alias: "Low Balance Alert"
     trigger:
       - platform: numeric_state
-        entity_id: sensor.pocketsmith_abc123_account_4546611
+        entity_id: sensor.pocketsmith_01kez619_account_4546611
         below: 100
     action:
       - service: notify.mobile_app
         data:
-          message: "Your account balance is below {{ state_attr('sensor.pocketsmith_abc123_account_4546611', 'currency_symbol') }}100!"
+          message: "Your account balance is below {{ state_attr('sensor.pocketsmith_01kez619_account_4546611', 'currency_symbol') }}100!"
 ```
 
 ### Uncategorized Transactions Alert
@@ -234,17 +261,17 @@ automation:
   - alias: "Uncategorized Transactions Reminder"
     trigger:
       - platform: state
-        entity_id: sensor.pocketsmith_abc123_uncategorized_transactions
+        entity_id: sensor.pocketsmith_01kez619_uncategorized_transactions
     condition:
       - condition: numeric_state
-        entity_id: sensor.pocketsmith_abc123_uncategorized_transactions
+        entity_id: sensor.pocketsmith_01kez619_uncategorized_transactions
         above: 10
     action:
       - service: notify.mobile_app
         data:
           title: "PocketSmith Reminder"
           message: >
-            You have {{ states('sensor.pocketsmith_abc123_uncategorized_transactions') }} 
+            You have {{ states('sensor.pocketsmith_01kez619_uncategorized_transactions') }} 
             uncategorized transactions in your recent activity. Please review and categorize them.
 ```
 
@@ -272,7 +299,7 @@ If sensors aren't updating:
 If you're upgrading from an older version, entity IDs now include the entry_id for multi-instance support:
 
 **Old format**: `sensor.pocketsmith_account_123456`  
-**New format**: `sensor.pocketsmith_abc123_account_123456`
+**New format**: `sensor.pocketsmith_01kez619_account_123456`
 
 You'll need to update your dashboards and automations with the new entity IDs.
 

@@ -1,0 +1,179 @@
+# PocketSmith Alerts
+# Add these to your automations.yaml or create a separate file
+
+# Alert 1: Account balance dropped below 1000
+- alias: "PocketSmith - Balance Below 1000 Alert"
+  description: "Alert when any account balance drops from above 1000 to below 1000"
+  trigger:
+    - platform: numeric_state
+      entity_id:
+        - sensor.pocketsmith_account_4546611
+        - sensor.pocketsmith_account_4546653
+        - sensor.pocketsmith_account_4546656
+      below: 1000
+  condition:
+    - condition: numeric_state
+      entity_id: "{{ trigger.entity_id }}"
+      above: 1000
+      value_template: "{{ trigger.from_state.state }}"
+  action:
+    - service: notify.mobile_app  # Change to your notification service
+      data:
+        title: "\U000026A0\UFE0F PocketSmith Balance Alert"
+        message: >
+          {{ state_attr(trigger.entity_id, 'institution_name') }} 
+          {{ state_attr(trigger.entity_id, 'account_name') }} 
+          has dropped below {{ state_attr(trigger.entity_id, 'currency_symbol') or state_attr(trigger.entity_id, 'currency') }}1,000.
+          Current balance: {{ state_attr(trigger.entity_id, 'currency_symbol') or state_attr(trigger.entity_id, 'currency') }}{{ states(trigger.entity_id) }}
+
+# Alert 2: Account balance went negative
+- alias: "PocketSmith - Negative Balance Alert"
+  description: "Alert when any account balance goes from 0 or above to below 0 (overdraft)"
+  trigger:
+    - platform: numeric_state
+      entity_id:
+        - sensor.pocketsmith_account_4546611
+        - sensor.pocketsmith_account_4546653
+        - sensor.pocketsmith_account_4546656
+      below: 0
+  condition:
+    - condition: numeric_state
+      entity_id: "{{ trigger.entity_id }}"
+      above: -0.01
+      value_template: "{{ trigger.from_state.state }}"
+  action:
+    - service: notify.mobile_app  # Change to your notification service
+      data:
+        title: "\U0001F6A8 PocketSmith OVERDRAFT Alert"
+        message: >
+          URGENT: {{ state_attr(trigger.entity_id, 'institution_name') }} 
+          {{ state_attr(trigger.entity_id, 'account_name') }} 
+          has gone into overdraft!
+          Current balance: {{ state_attr(trigger.entity_id, 'currency_symbol') or state_attr(trigger.entity_id, 'currency') }}{{ states(trigger.entity_id) }}
+        data:
+          priority: high
+          ttl: 0
+
+# Alert 3: Large incoming transaction (over 1000)
+- alias: "PocketSmith - Large Incoming Transaction"
+  description: "Alert when a new incoming transaction over 1000 is detected"
+  trigger:
+    - platform: state
+      entity_id:
+        - sensor.pocketsmith_transactions_4546611
+        - sensor.pocketsmith_transactions_4546653
+        - sensor.pocketsmith_transactions_4546656
+  condition:
+    - condition: template
+      value_template: >
+        {% set transactions = state_attr(trigger.entity_id, 'transactions') %}
+        {{ transactions and transactions|length > 0 and transactions[0].amount > 1000 }}
+  action:
+    - service: notify.mobile_app  # Change to your notification service
+      data:
+        title: "\U0001F4B0 PocketSmith - Large Deposit"
+        message: >
+          {% set transactions = state_attr(trigger.entity_id, 'transactions') %}
+          {% set latest = transactions[0] %}
+          {% set symbol = state_attr(trigger.entity_id, 'currency_symbol') %}
+          {% set currency = state_attr(trigger.entity_id, 'currency') %}
+          Large incoming transaction detected!
+          
+          Account: {{ state_attr(trigger.entity_id, 'institution_name') }} {{ state_attr(trigger.entity_id, 'account_name') }}
+          Amount: {{ symbol or currency }}{{ "%.2f"|format(latest.amount) }}
+          From: {{ latest.payee }}
+          Date: {{ latest.date }}
+          {% if latest.memo %}Memo: {{ latest.memo }}{% endif %}
+
+# Alert 4: Large outgoing transaction (over 1000)
+- alias: "PocketSmith - Large Outgoing Transaction"
+  description: "Alert when a new outgoing transaction over 1000 is detected"
+  trigger:
+    - platform: state
+      entity_id:
+        - sensor.pocketsmith_transactions_4546611
+        - sensor.pocketsmith_transactions_4546653
+        - sensor.pocketsmith_transactions_4546656
+  condition:
+    - condition: template
+      value_template: >
+        {% set transactions = state_attr(trigger.entity_id, 'transactions') %}
+        {{ transactions and transactions|length > 0 and transactions[0].amount < -1000 }}
+  action:
+    - service: notify.mobile_app  # Change to your notification service
+      data:
+        title: "\U0001F4B3 PocketSmith - Large Payment"
+        message: >
+          {% set transactions = state_attr(trigger.entity_id, 'transactions') %}
+          {% set latest = transactions[0] %}
+          {% set symbol = state_attr(trigger.entity_id, 'currency_symbol') %}
+          {% set currency = state_attr(trigger.entity_id, 'currency') %}
+          Large outgoing transaction detected!
+          
+          Account: {{ state_attr(trigger.entity_id, 'institution_name') }} {{ state_attr(trigger.entity_id, 'account_name') }}
+          Amount: {{ symbol or currency }}{{ "%.2f"|format(latest.amount|abs) }}
+          To: {{ latest.payee }}
+          Date: {{ latest.date }}
+          {% if latest.memo %}Memo: {{ latest.memo }}{% endif %}
+        data:
+          priority: high
+
+# BONUS: Daily account summary
+- alias: "PocketSmith - Daily Balance Summary"
+  description: "Send a daily summary of all account balances"
+  trigger:
+    - platform: time
+      at: "08:00:00"  # Adjust time as needed
+  action:
+    - service: notify.mobile_app  # Change to your notification service
+      data:
+        title: "\U0001F4CA PocketSmith Daily Summary"
+        message: >
+          {% set accounts = [
+            'sensor.pocketsmith_account_4546611',
+            'sensor.pocketsmith_account_4546653',
+            'sensor.pocketsmith_account_4546656'
+          ] %}
+          {% set total = namespace(value=0, currency='', symbol='') %}
+          Good morning! Here are your account balances:
+          
+          {% for account in accounts %}
+          {% set symbol = state_attr(account, 'currency_symbol') %}
+          {% set currency = state_attr(account, 'currency') %}
+          {% set balance = states(account)|float %}
+          {% if loop.first %}
+            {% set total.currency = currency %}
+            {% set total.symbol = symbol %}
+          {% endif %}
+          \U00002022 {{ state_attr(account, 'institution_name') }} {{ state_attr(account, 'account_name') }}: {{ symbol or currency }}{{ "%.2f"|format(balance) }}
+          {% if currency == total.currency %}
+            {% set total.value = total.value + balance %}
+          {% endif %}
+          {% endfor %}
+          
+          {% if total.value != 0 %}
+          Total: {{ total.symbol or total.currency }}{{ "%.2f"|format(total.value) }}
+          {% endif %}
+
+# BONUS: Uncategorized transactions reminder
+- alias: "PocketSmith - Uncategorized Transactions Reminder"
+  description: "Weekly reminder to categorize transactions"
+  trigger:
+    - platform: time
+      at: "18:00:00"  # 6 PM
+  condition:
+    - condition: time
+      weekday:
+        - sun  # Sunday only
+    - condition: numeric_state
+      entity_id: sensor.pocketsmith_uncategorized_transactions
+      above: 5
+  action:
+    - service: notify.mobile_app  # Change to your notification service
+      data:
+        title: "\U0001F4DD PocketSmith - Categorization Reminder"
+        message: >
+          You have {{ states('sensor.pocketsmith_uncategorized_transactions') }} uncategorized transactions.
+          Take a few minutes to categorize them in PocketSmith!
+        data:
+          url: "/money/pocketsmith"

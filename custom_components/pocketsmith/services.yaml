@@ -1,0 +1,4 @@
+refresh:
+  name: Refresh PocketSmith Data
+  description: Manually refresh all PocketSmith account data and transactions
+  fields: {}

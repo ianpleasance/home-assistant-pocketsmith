@@ -22,5 +22,11 @@
     "abort": {
       "already_configured": "Esta conta PocketSmith já está configurada"
     }
+  },
+  "services": {
+    "refresh": {
+      "name": "Atualizar dados do PocketSmith",
+      "description": "Atualizar manualmente todos os dados da conta e transações do PocketSmith"
+    }
   }
 }
