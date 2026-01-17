@@ -82,8 +82,10 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
         account_name = account.get("name", "Account {}".format(account_id))
         
         # Use entry_id in unique_id and entity_id for multi-instance support
-        self._attr_unique_id = "{}_{}_account_{}".format(DOMAIN, coordinator.entry_id, account_id)
-        self.entity_id = "sensor.{}_{}_account_{}".format(DOMAIN, coordinator.entry_id, account_id)
+        # Shorten entry_id to first 8 chars for cleaner entity IDs
+        short_entry_id = coordinator.entry_id[:8]
+        self._attr_unique_id = "{}_{}_account_{}".format(DOMAIN, short_entry_id, account_id)
+        self.entity_id = "sensor.{}_{}_account_{}".format(DOMAIN, short_entry_id, account_id)
         
         # Friendly name uses institution and account name
         self._attr_name = "PocketSmith {} {}".format(institution, account_name)
@@ -177,8 +179,10 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
         account_name = ta.get("name", "Account {}".format(ta_id))
         
         # Use entry_id in unique_id and entity_id for multi-instance support
-        self._attr_unique_id = "{}_{}_transactions_{}".format(DOMAIN, coordinator.entry_id, ta_id)
-        self.entity_id = "sensor.{}_{}_transactions_{}".format(DOMAIN, coordinator.entry_id, ta_id)
+        # Shorten entry_id to first 8 chars for cleaner entity IDs
+        short_entry_id = coordinator.entry_id[:8]
+        self._attr_unique_id = "{}_{}_transactions_{}".format(DOMAIN, short_entry_id, ta_id)
+        self.entity_id = "sensor.{}_{}_transactions_{}".format(DOMAIN, short_entry_id, ta_id)
         
         # Friendly name uses institution and account name
         self._attr_name = "PocketSmith {} {} Transactions".format(institution, account_name)
@@ -256,8 +260,10 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
         """Initialize the uncategorized transactions sensor."""
         super().__init__(coordinator)
         # Use entry_id for multi-instance support
-        self._attr_unique_id = "{}_{}_uncategorized_transactions".format(DOMAIN, coordinator.entry_id)
-        self.entity_id = "sensor.{}_{}_uncategorized_transactions".format(DOMAIN, coordinator.entry_id)
+        # Shorten entry_id to first 8 chars for cleaner entity IDs
+        short_entry_id = coordinator.entry_id[:8]
+        self._attr_unique_id = "{}_{}_uncategorized_transactions".format(DOMAIN, short_entry_id)
+        self.entity_id = "sensor.{}_{}_uncategorized_transactions".format(DOMAIN, short_entry_id)
         self._attr_name = "PocketSmith Uncategorized Transactions"
 
     @property
