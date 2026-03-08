@@ -82,10 +82,8 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
 
         account_name = account.get("name", "Account {}".format(account_id))
 
-        # Use entry_id in unique_id for multi-instance support
-        # Shorten entry_id to first 8 chars for cleaner entity IDs
-        short_entry_id = coordinator.entry_id[:8]
-        self._attr_unique_id = "{}_{}_account_{}".format(DOMAIN, short_entry_id, account_id)
+        # Use full entry_id in unique_id for guaranteed uniqueness across instances
+        self._attr_unique_id = "{}_account_{}".format(coordinator.entry_id, account_id)
 
         # Friendly name uses institution and account name
         self._attr_name = "PocketSmith {} {}".format(institution, account_name)
@@ -183,10 +181,8 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
 
         account_name = ta.get("name", "Account {}".format(ta_id))
 
-        # Use entry_id in unique_id for multi-instance support
-        # Shorten entry_id to first 8 chars for cleaner entity IDs
-        short_entry_id = coordinator.entry_id[:8]
-        self._attr_unique_id = "{}_{}_transactions_{}".format(DOMAIN, short_entry_id, ta_id)
+        # Use full entry_id in unique_id for guaranteed uniqueness across instances
+        self._attr_unique_id = "{}_transactions_{}".format(coordinator.entry_id, ta_id)
 
         # Friendly name uses institution and account name
         self._attr_name = "PocketSmith {} {} Transactions".format(institution, account_name)
@@ -271,11 +267,11 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         """Initialize the uncategorized transactions sensor."""
         super().__init__(coordinator)
-        # Use entry_id for multi-instance support
-        # Shorten entry_id to first 8 chars for cleaner entity IDs
-        short_entry_id = coordinator.entry_id[:8]
-        self._attr_unique_id = "{}_{}_uncategorized_transactions".format(DOMAIN, short_entry_id)
-        self._attr_name = "PocketSmith Uncategorized Transactions"
+        # Use full entry_id for guaranteed uniqueness across instances
+        self._attr_unique_id = "{}_uncategorized_transactions".format(coordinator.entry_id)
+        # Include entry title in name so multiple instances are distinguishable
+        instance_title = coordinator.config_entry.title if hasattr(coordinator, "config_entry") else "PocketSmith"
+        self._attr_name = "{} Uncategorized Transactions".format(instance_title)
 
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,

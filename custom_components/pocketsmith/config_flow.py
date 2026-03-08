@@ -40,7 +40,6 @@ async def validate_api_key(hass: HomeAssistant, api_key: str) -> dict[str, Any]:
 
     _LOGGER.debug("Validating PocketSmith API key")
     _LOGGER.debug("API URL: %s/me", API_BASE_URL)
-    _LOGGER.debug("API key length: %s", len(api_key))
 
     try:
         async with session.get(
