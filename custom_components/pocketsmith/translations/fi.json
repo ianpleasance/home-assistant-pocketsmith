@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "PocketSmith-asetukset",
+        "description": "Syötä PocketSmith API-avaimesi. Voit luoda sellaisen osoitteessa https://my.pocketsmith.com/developer",
+        "data": {
+          "api_key": "API-avain",
+          "scan_interval": "Päivitysväli (minuuttia)"
+        },
+        "data_description": {
+          "api_key": "PocketSmith-kehittäjäavaimesi",
+          "scan_interval": "Kuinka usein tiedot haetaan PocketSmithiltä (1–1440 minuuttia, oletus: 5)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Yhteys PocketSmith-ohjelmointirajapintaan epäonnistui",
+      "invalid_auth": "Virheellinen API-avain",
+      "unknown": "Odottamaton virhe tapahtui"
+    },
+    "abort": {
+      "already_configured": "Tämä PocketSmith-tili on jo määritetty"
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Päivitä PocketSmith-tiedot",
+      "description": "Päivitä manuaalisesti kaikki PocketSmith-tilin tiedot ja tapahtumat"
+    }
+  }
+}

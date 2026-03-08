@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "PocketSmith-oppsett",
+        "description": "Skriv inn PocketSmith API-nøkkelen din. Du kan generere en på https://my.pocketsmith.com/developer",
+        "data": {
+          "api_key": "API-nøkkel",
+          "scan_interval": "Oppdateringsintervall (minutter)"
+        },
+        "data_description": {
+          "api_key": "Din PocketSmith-utviklernøkkel",
+          "scan_interval": "Hvor ofte data hentes fra PocketSmith (1–1440 minutter, standard: 5)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kunne ikke koble til PocketSmith API",
+      "invalid_auth": "Ugyldig API-nøkkel",
+      "unknown": "En uventet feil oppstod"
+    },
+    "abort": {
+      "already_configured": "Denne PocketSmith-kontoen er allerede konfigurert"
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Oppdater PocketSmith-data",
+      "description": "Oppdater manuelt alle PocketSmith-kontodata og transaksjoner"
+    }
+  }
+}

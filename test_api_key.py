@@ -17,7 +17,7 @@ async def test_api_key(api_key: str):
     
     # Test with Bearer token
     print("Test 1: Using Bearer authentication")
-    headers = {"Authorization": f"Bearer {api_key}"}
+    headers = {"X-Developer-Key": api_key}
     
     async with aiohttp.ClientSession() as session:
         try:

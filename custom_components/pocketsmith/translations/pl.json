@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Konfiguracja PocketSmith",
+        "description": "Wprowadź klucz API PocketSmith. Możesz go wygenerować na https://my.pocketsmith.com/developer",
+        "data": {
+          "api_key": "Klucz API",
+          "scan_interval": "Interwał odświeżania (minuty)"
+        },
+        "data_description": {
+          "api_key": "Twój klucz deweloperski PocketSmith",
+          "scan_interval": "Jak często pobierać dane z PocketSmith (1–1440 minut, domyślnie: 5)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie udało się połączyć z API PocketSmith",
+      "invalid_auth": "Nieprawidłowy klucz API",
+      "unknown": "Wystąpił nieoczekiwany błąd"
+    },
+    "abort": {
+      "already_configured": "To konto PocketSmith jest już skonfigurowane"
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Odśwież dane PocketSmith",
+      "description": "Ręcznie odśwież wszystkie dane konta i transakcje PocketSmith"
+    }
+  }
+}

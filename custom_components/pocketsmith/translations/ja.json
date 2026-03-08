@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "PocketSmith セットアップ",
+        "description": "PocketSmith の API キーを入力してください。https://my.pocketsmith.com/developer で生成できます",
+        "data": {
+          "api_key": "API キー",
+          "scan_interval": "更新間隔（分）"
+        },
+        "data_description": {
+          "api_key": "PocketSmith 開発者キー",
+          "scan_interval": "PocketSmith からデータを取得する頻度（1〜1440 分、デフォルト: 5）"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "PocketSmith API への接続に失敗しました",
+      "invalid_auth": "無効な API キーです",
+      "unknown": "予期しないエラーが発生しました"
+    },
+    "abort": {
+      "already_configured": "この PocketSmith アカウントはすでに設定されています"
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "PocketSmith データを更新",
+      "description": "すべての PocketSmith アカウントデータとトランザクションを手動で更新します"
+    }
+  }
+}
