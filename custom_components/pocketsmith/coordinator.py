@@ -25,11 +25,13 @@ class PocketSmithDataUpdateCoordinator(DataUpdateCoordinator):
         api_key: str,
         update_interval: timedelta,
         entry_id: str,
+        username: str = "pocketsmith",
     ) -> None:
         """Initialize coordinator."""
         self.session = session
         self.api_key = api_key
         self.entry_id = entry_id
+        self.username = username
         # PocketSmith uses X-Developer-Key header, not Bearer token
         self.headers = {"X-Developer-Key": api_key}
 

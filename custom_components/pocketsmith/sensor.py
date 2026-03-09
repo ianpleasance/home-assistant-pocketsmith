@@ -82,11 +82,11 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
 
         account_name = account.get("name", "Account {}".format(account_id))
 
-        # Use full entry_id in unique_id for guaranteed uniqueness across instances
-        self._attr_unique_id = "{}_account_{}".format(coordinator.entry_id, account_id)
+        # Include username in unique_id to prevent clashes between instances
+        self._attr_unique_id = "{}_{}_account_{}".format(DOMAIN, coordinator.username, account_id)
 
         # Friendly name uses institution and account name
-        self._attr_name = "PocketSmith {} {}".format(institution, account_name)
+        self._attr_name = "PocketSmith {} {} {}".format(coordinator.username, institution, account_name)
 
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,
@@ -137,6 +137,7 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
             "account_name": account.get("name"),
             "last_updated": dt_util.now(),
         }
+
         account_number = account.get("number")
         if account_number:
             attributes["account_number"] = account_number
@@ -182,11 +183,11 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
 
         account_name = ta.get("name", "Account {}".format(ta_id))
 
-        # Use full entry_id in unique_id for guaranteed uniqueness across instances
-        self._attr_unique_id = "{}_transactions_{}".format(coordinator.entry_id, ta_id)
+        # Include username in unique_id to prevent clashes between instances
+        self._attr_unique_id = "{}_{}_transactions_{}".format(DOMAIN, coordinator.username, ta_id)
 
         # Friendly name uses institution and account name
-        self._attr_name = "PocketSmith {} {} Transactions".format(institution, account_name)
+        self._attr_name = "PocketSmith {} {} {} Transactions".format(coordinator.username, institution, account_name)
 
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,
@@ -268,11 +269,9 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         """Initialize the uncategorized transactions sensor."""
         super().__init__(coordinator)
-        # Use full entry_id for guaranteed uniqueness across instances
-        self._attr_unique_id = "{}_uncategorized_transactions".format(coordinator.entry_id)
-        # Include entry title in name so multiple instances are distinguishable
-        instance_title = coordinator.config_entry.title if hasattr(coordinator, "config_entry") else "PocketSmith"
-        self._attr_name = "{} Uncategorized Transactions".format(instance_title)
+        # Include username in unique_id to prevent clashes between instances
+        self._attr_unique_id = "{}_{}_uncategorized_transactions".format(DOMAIN, coordinator.username)
+        self._attr_name = "PocketSmith {} Uncategorized Transactions".format(coordinator.username)
 
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,

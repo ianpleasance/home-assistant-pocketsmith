@@ -9,7 +9,7 @@ import aiohttp
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_API_KEY
+from homeassistant.const import CONF_API_KEY, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -136,8 +136,8 @@ class PocketSmithConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
-                    title="PocketSmith - {}".format(info["title"]), 
-                    data=user_input
+                    title="PocketSmith - {}".format(info["title"]),
+                    data={**user_input, CONF_USERNAME: info["title"]},
                 )
 
         return self.async_show_form(
