@@ -38,7 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api_key=entry.data[CONF_API_KEY],
         update_interval=scan_interval,
         entry_id=entry.entry_id,
-        username=entry.data.get(CONF_USERNAME, "pocketsmith"),
+        username=entry.data.get(CONF_USERNAME) or entry.title.replace("PocketSmith - ", "").strip().lower(),
     )
 
     await coordinator.async_config_entry_first_refresh()
