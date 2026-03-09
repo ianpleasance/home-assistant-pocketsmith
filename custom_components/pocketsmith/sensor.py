@@ -136,6 +136,7 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
             "institution_name": institution_name,
             "account_name": account.get("name"),
             "last_updated": dt_util.now(),
+        }
         account_number = account.get("number")
         if account_number:
             attributes["account_number"] = account_number
