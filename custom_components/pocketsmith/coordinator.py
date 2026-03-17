@@ -64,28 +64,59 @@ class PocketSmithDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Successfully fetched %d transaction accounts", len(transaction_accounts))
 
             # Fetch transactions for each transaction account (last 20)
+            # Track which accounts are inaccessible (e.g. archived/closed) to exclude them
             transactions_by_account = {}
+            inaccessible_ta_ids = set()
             for ta in transaction_accounts:
                 ta_id = ta["id"]
-                _LOGGER.debug("Fetching transactions for account %s", ta_id)
+                ta_name = ta.get("name", str(ta_id))
+                _LOGGER.debug("Fetching transactions for account %s (%s)", ta_id, ta_name)
                 try:
                     transactions = await self._fetch_endpoint(
                         "transaction_accounts/{}/transactions?per_page=20".format(ta_id)
                     )
                     transactions_by_account[ta_id] = transactions
-                    _LOGGER.debug("Fetched %d transactions for account %s", len(transactions), ta_id)
+                    _LOGGER.debug("Fetched %d transactions for account %s (%s)", len(transactions), ta_id, ta_name)
+                except UpdateFailed as err:
+                    err_str = str(err)
+                    if "HTTP 404" in err_str:
+                        _LOGGER.warning(
+                            "Account %s (%s) returned 404 - it may be archived or closed. "
+                            "Excluding from sensors. If this account no longer exists in PocketSmith, "
+                            "remove and re-add the integration to clear stale entities.",
+                            ta_id,
+                            ta_name,
+                        )
+                        inaccessible_ta_ids.add(ta_id)
+                    else:
+                        _LOGGER.warning(
+                            "Failed to fetch transactions for account %s (%s): %s", ta_id, ta_name, err
+                        )
+                        transactions_by_account[ta_id] = []
                 except Exception as err:
                     _LOGGER.warning(
-                        "Failed to fetch transactions for account %s: %s", ta_id, err
+                        "Failed to fetch transactions for account %s (%s): %s", ta_id, ta_name, err
                     )
                     transactions_by_account[ta_id] = []
+
+            # Filter out inaccessible accounts from transaction_accounts so no
+            # sensors are created/updated for them (avoids persistent 404 noise)
+            active_transaction_accounts = [
+                ta for ta in transaction_accounts if ta["id"] not in inaccessible_ta_ids
+            ]
+            if inaccessible_ta_ids:
+                _LOGGER.info(
+                    "Excluded %d inaccessible transaction account(s) from data: %s",
+                    len(inaccessible_ta_ids),
+                    inaccessible_ta_ids,
+                )
 
             # Organize data
             data = {
                 "user": user_data,
                 "accounts": {account["id"]: account for account in accounts},
                 "transaction_accounts": {
-                    ta["id"]: ta for ta in transaction_accounts
+                    ta["id"]: ta for ta in active_transaction_accounts
                 },
                 "transactions": transactions_by_account,
             }
