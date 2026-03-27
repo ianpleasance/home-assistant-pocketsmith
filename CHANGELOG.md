@@ -8,16 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.5] - 2026-03-27
 
 ### Added
-- **Feed Status sensors** (`sensor.pocketsmith_{username}_{institution}_{account}_feed_status`) — one per feed-connected account
-  - State is the raw feed status from the PocketSmith API (`active`, `error`, `needs_reauthorization`, `disabled`, `unknown`)
-  - Dynamic icon: green check (active), red alert (error/needs_reauthorization), grey minus (disabled)
-  - Attributes: `feed_name`, `feed_status`, `last_refreshed_at`, `hours_since_refresh`, `account_name`, `institution_name`, `account_type`
+- **Feed Status sensors** (`sensor.pocketsmith_{username}_{institution}_{account}_feed_status`) — one per live feed-connected account
+  - Status is **derived** from `updated_at` staleness — the PocketSmith API does not expose a feed_status field directly
+  - States: `active` (updated within 24 h), `stale` (no update in > 24 h), `unknown` (timestamp missing)
+  - Dynamic icon: green check (active), amber alert (stale), grey (unknown)
+  - Attributes: `feed_name` (from `latest_feed_name`), `feed_status`, `last_refreshed_at` (from `updated_at`), `hours_since_refresh`, `current_balance_date`, `data_feeds_connection_id`, `account_name`, `institution_name`, `account_type`
   - `hours_since_refresh` is pre-calculated so automations can use a simple numeric threshold without date arithmetic
-  - Only created for accounts that have an active feed connection; offline/manual accounts are unaffected
-- Feed status attributes on **Account Balance sensors**: `feed_name`, `feed_status`, and `last_refreshed_at` are now also surfaced as attributes on the balance sensor for dashboard convenience
+  - Only created for live feed accounts (`offline: false` with a `data_feeds_connection_id`); offline/manual accounts are unaffected
+- Feed health attributes on **Account Balance sensors**: `feed_name`, `feed_status`, and `last_refreshed_at` now also appear on the balance sensor for dashboard convenience (feed accounts only)
 - New `pocketsmith_feed_alerts.yaml` automation file with two ready-to-use automations:
-  - Alert when any feed status is not `active`
-  - Alert when any feed has not refreshed in more than 24 hours
+  - Alert immediately when any feed status changes to `stale`
+  - Daily 9am summary of all stale feeds
 
 ## [1.0.1] - 2026-03-08
 

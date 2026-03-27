@@ -171,40 +171,46 @@ For example:
 - `sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status`
 - `sensor.pocketsmith_ianpleasance_monzo_personal_account_feed_status`
 
-**Note**: These sensors are only created for accounts connected via a live bank feed. Offline or manually-managed accounts will not have a feed status sensor.
+**Note**: These sensors are only created for accounts connected via a live bank feed (`offline: false`). Offline or manually-managed accounts will not have a feed status sensor.
 
-**State**: The feed status string from the PocketSmith API:
+**Important**: The PocketSmith API does not expose a feed status field directly. Status is **inferred** from the account's `updated_at` timestamp:
 
 | Value | Meaning |
 |---|---|
-| `active` | Feed is connected and syncing normally |
-| `needs_reauthorization` | Bank requires you to re-authenticate (e.g. Salt Edge 90-day expiry) |
-| `error` | Feed encountered an error during last sync |
-| `disabled` | Feed has been disabled |
-| `unknown` | Status field not present in API response |
+| `active` | Account was updated within the last 24 hours — feed is healthy |
+| `stale` | Account has not been updated in over 24 hours — feed may have a problem |
+| `unknown` | Timestamp is missing or could not be parsed |
 
 **Attributes**:
-- `feed_name`: Name of the feed provider (e.g. Salt Edge, Yodlee, Plaid)
-- `feed_status`: Current feed status (mirrors the sensor state)
-- `last_refreshed_at`: ISO 8601 timestamp of the last successful feed sync
+- `feed_name`: The feed account name as reported by the data provider (from `latest_feed_name`)
+- `feed_status`: Derived status (mirrors the sensor state)
+- `last_refreshed_at`: ISO 8601 timestamp of the last account update (from `updated_at`)
 - `hours_since_refresh`: Hours elapsed since last refresh (float, pre-calculated for use in automations)
+- `current_balance_date`: Date the balance was last updated from the feed
+- `data_feeds_connection_id`: The PocketSmith data feeds connection ID (shared across accounts on the same bank login)
 - `account_name`: Name of the account
 - `institution_name`: Name of the financial institution
-- `account_type`: Type of account
+- `account_type`: Type of account (bank, credits, loans, etc.)
 - `last_updated`: Timestamp of last HA update
 
 ### Feed Status on Balance Sensors
 
-The `feed_name`, `feed_status`, and `last_refreshed_at` attributes are also available on the **Account Balance sensor** for convenience, so a single dashboard card can show both the balance and whether the feed is healthy.
+The `feed_name`, `feed_status`, and `last_refreshed_at` attributes are also available on the **Account Balance sensor** for convenience, so a single dashboard card can show both the balance and whether the feed is healthy. These attributes are only present on feed-connected accounts.
 
 ## Supported Currencies
+- `feed_status`: Derived status (mirrors the sensor state)
+- `last_refreshed_at`: ISO 8601 timestamp of the last account update (from `updated_at`)
+- `hours_since_refresh`: Hours elapsed since last refresh (float, pre-calculated for use in automations)
+- `current_balance_date`: Date the balance was last updated from the feed
+- `data_feeds_connection_id`: The PocketSmith data feeds connection ID (shared across accounts on the same bank login)
+- `account_name`: Name of the account
+- `institution_name`: Name of the financial institution
+- `account_type`: Type of account (bank, credits, loans, etc.)
+- `last_updated`: Timestamp of last HA update
 
-The integration includes currency symbols for 33 major currencies:
+### Feed Status on Balance Sensors
 
-🇦🇪 AED (د.إ), 🇦🇺 AUD (A$), 🇧🇬 BGN (лв), 🇧🇷 BRL (R$), 🇨🇦 CAD (C$), 🇨🇭 CHF (Fr), 🇨🇳 CNY (¥), 🇨🇿 CZK (Kč), 🇩🇰 DKK (kr), 🇪🇺 EUR (€), 🇬🇧 GBP (£), 🇭🇰 HKD (HK$), 🇭🇺 HUF (Ft), 🇮🇩 IDR (Rp), 🇮🇱 ILS (₪), 🇮🇳 INR (₹), 🇯🇵 JPY (¥), 🇰🇷 KRW (₩), 🇲🇽 MXN (Mex$), 🇲🇾 MYR (RM), 🇳🇴 NOK (kr), 🇳🇿 NZD (NZ$), 🇵🇭 PHP (₱), 🇵🇱 PLN (zł), 🇷🇴 RON (lei), 🇷🇺 RUB (₽), 🇸🇪 SEK (kr), 🇸🇬 SGD (S$), 🇹🇭 THB (฿), 🇹🇷 TRY (₺), 🇺🇸 USD ($), 🇿🇦 ZAR (R)
-
-## Supported Languages
-
+The `feed_name`, `feed_status`, 
 The integration UI is available in:
 
 - 🇬🇧 English
@@ -319,42 +325,24 @@ automation:
 
 ```yaml
 automation:
-  - alias: "PocketSmith Feed Not Active"
+  - alias: "PocketSmith Feed Stale"
     trigger:
       - platform: state
         entity_id: sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status
-    condition:
-      - condition: not
-        conditions:
-          - condition: state
-            entity_id: sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status
-            state: active
+        to: "stale"
     action:
       - service: notify.mobile_app
         data:
-          title: "⚠️ PocketSmith Feed Problem"
+          title: "⚠️ PocketSmith Feed Stale"
           message: >
             {{ state_attr('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status', 'institution_name') }}
             {{ state_attr('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status', 'account_name') }}
-            feed status: {{ states('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status') }}.
-            Go to PocketSmith → Manage → Feeds to resolve.
-
-  - alias: "PocketSmith Feed Stale"
-    trigger:
-      - platform: time_pattern
-        hours: "/1"
-    condition:
-      - condition: template
-        value_template: >
-          {{ state_attr('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status', 'hours_since_refresh') | float(0) > 24 }}
-    action:
-      - service: notify.mobile_app
-        data:
-          title: "🕐 PocketSmith Feed Stale"
-          message: >
-            NatWest Primary Account hasn't refreshed for
+            has not refreshed for
             {{ state_attr('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status', 'hours_since_refresh') | round(0) | int }} hours.
+            Check PocketSmith → Manage → Feeds.
 ```
+
+**Note**: Feed status is derived from `updated_at` staleness — `active` means updated within 24 hours, `stale` means not updated for over 24 hours. The PocketSmith API does not expose a feed status field directly.
 
 A more complete multi-account version of these automations is included in `pocketsmith_feed_alerts.yaml`.
 
@@ -368,16 +356,21 @@ If you experience connection issues:
 2. Check that you have an active internet connection
 3. Ensure PocketSmith API is accessible (check [status.pocketsmith.com](https://status.pocketsmith.com))
 
-### Feed Status Shows 'needs_reauthorization' or 'error'
+### Feed Status Shows 'stale'
 
-1. Log in to PocketSmith and go to **Manage → Feeds**
-2. Look for any connections showing errors or a "Try Again" / "Authorise" button
-3. For Salt Edge (UK/EU) feeds, reauthorisation is required every 90 days by regulation — this is expected behaviour
-4. After reauthorising in PocketSmith, the feed status sensor in HA will update on the next coordinator poll (within 5 minutes by default)
+A `stale` status means the account's `updated_at` timestamp is more than 24 hours old — the integration has not seen a fresh update from PocketSmith. This may mean:
+
+1. The bank feed itself has an error or needs reauthorisation — log in to PocketSmith and go to **Manage → Feeds** to check
+2. PocketSmith's data provider is experiencing a temporary outage — check the feed provider's status page
+3. For Salt Edge (UK/EU) feeds, reauthorisation is required every 90 days by regulation — click "Authorise" in PocketSmith → Manage → Feeds
+
+Once the feed syncs successfully in PocketSmith, the sensor will return to `active` on the next coordinator poll (within 5 minutes by default).
+
+**Note**: The PocketSmith API does not expose a feed status field. The `stale`/`active` status is inferred from the account's last update timestamp. A feed that PocketSmith itself shows as errored will always appear as `stale` in HA since the account data stops being updated.
 
 ### Feed Status Sensor Not Created
 
-Feed status sensors are only created for accounts that return a `feed_name` or `feed_status` field from the PocketSmith API. Offline accounts (manual imports only) will not have a feed status sensor — this is expected.
+Feed status sensors are only created for live feed accounts — those with `offline: false` and a `data_feeds_connection_id` in the API response. Accounts managed manually (loans, offline accounts) will not have a feed status sensor. This is expected.
 
 ### Sensors Not Updating
 

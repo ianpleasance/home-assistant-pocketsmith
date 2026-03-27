@@ -1,6 +1,7 @@
 """Support for PocketSmith sensors."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -18,6 +19,55 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN, CURRENCY_SYMBOLS
 from .coordinator import PocketSmithDataUpdateCoordinator
 
+# Threshold in hours after which a feed is considered stale
+FEED_STALE_HOURS = 24
+
+
+def _is_feed_account(ta: dict) -> bool:
+    """Return True if this transaction account is connected via a live data feed."""
+    return (
+        not ta.get("offline", True)
+        and ta.get("data_feeds_connection_id") is not None
+    )
+
+
+def _parse_iso(ts: str | None) -> datetime | None:
+    """Parse an ISO 8601 timestamp string to an aware datetime, or return None."""
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+
+
+def _hours_since(ts: str | None) -> float | None:
+    """Return decimal hours elapsed since an ISO 8601 timestamp, or None."""
+    dt = _parse_iso(ts)
+    if dt is None:
+        return None
+    delta = dt_util.now() - dt
+    return round(delta.total_seconds() / 3600, 1)
+
+
+def _derive_feed_status(ta: dict) -> str:
+    """Derive a feed health status from the available API fields.
+
+    The PocketSmith API does not expose a feed_status field directly.
+    We infer status from:
+      - offline: True  → not a feed account, should not be called
+      - updated_at staleness → 'active' if recent, 'stale' if > FEED_STALE_HOURS
+    """
+    if not _is_feed_account(ta):
+        return "offline"
+
+    hours = _hours_since(ta.get("updated_at"))
+    if hours is None:
+        return "unknown"
+    if hours > FEED_STALE_HOURS:
+        return "stale"
+    return "active"
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -29,10 +79,8 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = []
 
-    # Create balance, transaction, and feed status sensors for each transaction account
     if coordinator.data and "transaction_accounts" in coordinator.data:
         for ta_id, ta in coordinator.data["transaction_accounts"].items():
-            # Create balance sensor
             entities.append(
                 PocketSmithAccountBalanceSensor(
                     coordinator=coordinator,
@@ -40,7 +88,6 @@ async def async_setup_entry(
                 )
             )
 
-            # Create transaction history sensor
             entities.append(
                 PocketSmithTransactionHistorySensor(
                     coordinator=coordinator,
@@ -48,8 +95,8 @@ async def async_setup_entry(
                 )
             )
 
-            # Create feed status sensor for any account that has feed data
-            if ta.get("feed_name") or ta.get("feed_status"):
+            # Only create a feed status sensor for live feed accounts
+            if _is_feed_account(ta):
                 entities.append(
                     PocketSmithFeedStatusSensor(
                         coordinator=coordinator,
@@ -57,7 +104,6 @@ async def async_setup_entry(
                     )
                 )
 
-    # Create uncategorized transactions sensor
     entities.append(PocketSmithUncategorizedSensor(coordinator=coordinator))
 
     async_add_entities(entities)
@@ -153,33 +199,28 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
             "starting_balance_date": account.get("starting_balance_date"),
         })
 
-        # Feed status attributes surfaced on the balance sensor for convenience
-        feed_name = account.get("feed_name")
-        feed_status = account.get("feed_status")
-        last_refreshed_at = account.get("last_refreshed_at")
-        if feed_name:
-            attributes["feed_name"] = feed_name
-        if feed_status:
-            attributes["feed_status"] = feed_status
-        if last_refreshed_at:
-            attributes["last_refreshed_at"] = last_refreshed_at
+        # Surface feed health on the balance sensor for dashboard convenience.
+        # Only populated for live feed accounts; absent for offline accounts.
+        if _is_feed_account(account):
+            attributes["feed_name"] = account.get("latest_feed_name")
+            attributes["last_refreshed_at"] = account.get("updated_at")
+            attributes["feed_status"] = _derive_feed_status(account)
 
         return attributes
 
 
 class PocketSmithFeedStatusSensor(CoordinatorEntity, SensorEntity):
-    """Dedicated sensor for the feed connection status of a PocketSmith account.
+    """Dedicated sensor for the inferred feed health of a PocketSmith account.
 
-    State value is the raw feed_status string returned by the API, e.g.:
-      - 'active'
-      - 'error'
-      - 'needs_reauthorization'
-      - 'disabled'
-      - 'unknown'  (offline accounts / field absent)
+    The PocketSmith API does not return a feed_status field. Status is derived
+    from the account's updated_at timestamp:
 
-    The extra attributes include last_refreshed_at and a pre-calculated
-    hours_since_refresh float, making it straightforward to trigger
-    automations on staleness without complex template date arithmetic.
+      - 'active'  — updated_at is within the last 24 hours
+      - 'stale'   — updated_at is older than 24 hours (feed may have a problem)
+      - 'unknown' — updated_at is missing or unparseable
+
+    Attributes include last_refreshed_at (the raw updated_at value) and
+    hours_since_refresh (pre-calculated float) for use in automations.
     """
 
     _attr_has_entity_name = False
@@ -217,20 +258,18 @@ class PocketSmithFeedStatusSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> StateType:
-        """Return the feed status string from the API."""
+        """Return the derived feed status: 'active', 'stale', or 'unknown'."""
         ta = self.coordinator.data.get("transaction_accounts", {}).get(self.ta_id, {})
-        return ta.get("feed_status") or "unknown"
+        return _derive_feed_status(ta)
 
     @property
     def icon(self) -> str:
-        """Return a contextual icon based on feed status."""
+        """Return a contextual icon based on derived feed status."""
         status = self.native_value
         if status == "active":
             return "mdi:check-circle-outline"
-        if status in ("error", "needs_reauthorization"):
+        if status == "stale":
             return "mdi:alert-circle-outline"
-        if status == "disabled":
-            return "mdi:minus-circle-outline"
         return "mdi:help-circle-outline"
 
     @property
@@ -244,25 +283,15 @@ class PocketSmithFeedStatusSensor(CoordinatorEntity, SensorEntity):
         else:
             institution_name = str(institution_data) if institution_data else None
 
-        last_refreshed_at = ta.get("last_refreshed_at")
-
-        # Pre-calculate hours since last refresh so automations can use a simple
-        # numeric threshold (hours_since_refresh > 24) rather than date templates.
-        hours_since_refresh = None
-        if last_refreshed_at:
-            try:
-                from datetime import datetime, timezone
-                refreshed_dt = datetime.fromisoformat(last_refreshed_at.replace("Z", "+00:00"))
-                delta = dt_util.now() - refreshed_dt
-                hours_since_refresh = round(delta.total_seconds() / 3600, 1)
-            except (ValueError, TypeError):
-                pass
+        last_refreshed_at = ta.get("updated_at")
 
         return {
-            "feed_name": ta.get("feed_name"),
-            "feed_status": ta.get("feed_status"),
+            "feed_name": ta.get("latest_feed_name"),
+            "feed_status": _derive_feed_status(ta),
             "last_refreshed_at": last_refreshed_at,
-            "hours_since_refresh": hours_since_refresh,
+            "hours_since_refresh": _hours_since(last_refreshed_at),
+            "current_balance_date": ta.get("current_balance_date"),
+            "data_feeds_connection_id": ta.get("data_feeds_connection_id"),
             "account_name": ta.get("name"),
             "institution_name": institution_name,
             "account_type": ta.get("type"),
