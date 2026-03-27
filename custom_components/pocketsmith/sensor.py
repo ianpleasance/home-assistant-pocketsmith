@@ -29,8 +29,7 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = []
 
-    # Create balance and transaction sensors for each transaction account
-    # Transaction accounts have both balance info AND transaction details
+    # Create balance, transaction, and feed status sensors for each transaction account
     if coordinator.data and "transaction_accounts" in coordinator.data:
         for ta_id, ta in coordinator.data["transaction_accounts"].items():
             # Create balance sensor
@@ -48,6 +47,15 @@ async def async_setup_entry(
                     ta_id=ta_id,
                 )
             )
+
+            # Create feed status sensor for any account that has feed data
+            if ta.get("feed_name") or ta.get("feed_status"):
+                entities.append(
+                    PocketSmithFeedStatusSensor(
+                        coordinator=coordinator,
+                        ta_id=ta_id,
+                    )
+                )
 
     # Create uncategorized transactions sensor
     entities.append(PocketSmithUncategorizedSensor(coordinator=coordinator))
@@ -70,10 +78,8 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self.account_id = account_id
 
-        # Get account details for friendly name from transaction_accounts
         account = coordinator.data.get("transaction_accounts", {}).get(account_id, {})
 
-        # Institution is a dict, extract the title
         institution_data = account.get("institution", {})
         if isinstance(institution_data, dict):
             institution = institution_data.get("title", "Unknown")
@@ -82,10 +88,7 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
 
         account_name = account.get("name", "Account {}".format(account_id))
 
-        # Include username in unique_id to prevent clashes between instances
         self._attr_unique_id = "{}_{}_account_{}".format(DOMAIN, coordinator.username, account_id)
-
-        # Friendly name uses institution and account name
         self._attr_name = "PocketSmith {} {} {}".format(coordinator.username, institution, account_name)
 
         self._attr_device_info = DeviceInfo(
@@ -116,14 +119,12 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
         """Return the state attributes."""
         account = self.coordinator.data.get("transaction_accounts", {}).get(self.account_id, {})
 
-        # Extract institution name from dict
         institution_data = account.get("institution", {})
         if isinstance(institution_data, dict):
             institution_name = institution_data.get("title")
         else:
             institution_name = str(institution_data) if institution_data else None
 
-        # Get currency and symbol
         currency_code = account.get("currency_code")
         currency_symbol = None
         if currency_code:
@@ -142,7 +143,6 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
         if account_number:
             attributes["account_number"] = account_number
 
-        # Add other useful attributes
         attributes.update({
             "account_type": account.get("type"),
             "current_balance_date": account.get("current_balance_date"),
@@ -153,7 +153,121 @@ class PocketSmithAccountBalanceSensor(CoordinatorEntity, SensorEntity):
             "starting_balance_date": account.get("starting_balance_date"),
         })
 
+        # Feed status attributes surfaced on the balance sensor for convenience
+        feed_name = account.get("feed_name")
+        feed_status = account.get("feed_status")
+        last_refreshed_at = account.get("last_refreshed_at")
+        if feed_name:
+            attributes["feed_name"] = feed_name
+        if feed_status:
+            attributes["feed_status"] = feed_status
+        if last_refreshed_at:
+            attributes["last_refreshed_at"] = last_refreshed_at
+
         return attributes
+
+
+class PocketSmithFeedStatusSensor(CoordinatorEntity, SensorEntity):
+    """Dedicated sensor for the feed connection status of a PocketSmith account.
+
+    State value is the raw feed_status string returned by the API, e.g.:
+      - 'active'
+      - 'error'
+      - 'needs_reauthorization'
+      - 'disabled'
+      - 'unknown'  (offline accounts / field absent)
+
+    The extra attributes include last_refreshed_at and a pre-calculated
+    hours_since_refresh float, making it straightforward to trigger
+    automations on staleness without complex template date arithmetic.
+    """
+
+    _attr_has_entity_name = False
+
+    def __init__(
+        self,
+        coordinator: PocketSmithDataUpdateCoordinator,
+        ta_id: str,
+    ) -> None:
+        """Initialize the feed status sensor."""
+        super().__init__(coordinator)
+        self.ta_id = ta_id
+
+        ta = coordinator.data.get("transaction_accounts", {}).get(ta_id, {})
+
+        institution_data = ta.get("institution", {})
+        if isinstance(institution_data, dict):
+            institution = institution_data.get("title", "Unknown")
+        else:
+            institution = str(institution_data) if institution_data else "Unknown"
+
+        account_name = ta.get("name", "Account {}".format(ta_id))
+
+        self._attr_unique_id = "{}_{}_feed_status_{}".format(DOMAIN, coordinator.username, ta_id)
+        self._attr_name = "PocketSmith {} {} {} Feed Status".format(
+            coordinator.username, institution, account_name
+        )
+
+        self._attr_device_info = DeviceInfo(
+            entry_type=DeviceEntryType.SERVICE,
+            identifiers={(DOMAIN, coordinator.entry_id)},
+            name="PocketSmith",
+            manufacturer="PocketSmith",
+        )
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the feed status string from the API."""
+        ta = self.coordinator.data.get("transaction_accounts", {}).get(self.ta_id, {})
+        return ta.get("feed_status") or "unknown"
+
+    @property
+    def icon(self) -> str:
+        """Return a contextual icon based on feed status."""
+        status = self.native_value
+        if status == "active":
+            return "mdi:check-circle-outline"
+        if status in ("error", "needs_reauthorization"):
+            return "mdi:alert-circle-outline"
+        if status == "disabled":
+            return "mdi:minus-circle-outline"
+        return "mdi:help-circle-outline"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return feed-related attributes useful for automations."""
+        ta = self.coordinator.data.get("transaction_accounts", {}).get(self.ta_id, {})
+
+        institution_data = ta.get("institution", {})
+        if isinstance(institution_data, dict):
+            institution_name = institution_data.get("title")
+        else:
+            institution_name = str(institution_data) if institution_data else None
+
+        last_refreshed_at = ta.get("last_refreshed_at")
+
+        # Pre-calculate hours since last refresh so automations can use a simple
+        # numeric threshold (hours_since_refresh > 24) rather than date templates.
+        hours_since_refresh = None
+        if last_refreshed_at:
+            try:
+                from datetime import datetime, timezone
+                refreshed_dt = datetime.fromisoformat(last_refreshed_at.replace("Z", "+00:00"))
+                delta = dt_util.now() - refreshed_dt
+                hours_since_refresh = round(delta.total_seconds() / 3600, 1)
+            except (ValueError, TypeError):
+                pass
+
+        return {
+            "feed_name": ta.get("feed_name"),
+            "feed_status": ta.get("feed_status"),
+            "last_refreshed_at": last_refreshed_at,
+            "hours_since_refresh": hours_since_refresh,
+            "account_name": ta.get("name"),
+            "institution_name": institution_name,
+            "account_type": ta.get("type"),
+            "last_updated": dt_util.now(),
+        }
 
 
 class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
@@ -171,10 +285,8 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self.ta_id = ta_id
 
-        # Get transaction account details for friendly name
         ta = coordinator.data.get("transaction_accounts", {}).get(ta_id, {})
 
-        # Institution is a dict, extract the title
         institution_data = ta.get("institution", {})
         if isinstance(institution_data, dict):
             institution = institution_data.get("title", "Unknown")
@@ -183,10 +295,7 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
 
         account_name = ta.get("name", "Account {}".format(ta_id))
 
-        # Include username in unique_id to prevent clashes between instances
         self._attr_unique_id = "{}_{}_transactions_{}".format(DOMAIN, coordinator.username, ta_id)
-
-        # Friendly name uses institution and account name
         self._attr_name = "PocketSmith {} {} {} Transactions".format(coordinator.username, institution, account_name)
 
         self._attr_device_info = DeviceInfo(
@@ -207,17 +316,14 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
         """Return the state attributes with last 20 transactions."""
         transactions = self.coordinator.data.get("transactions", {}).get(self.ta_id, [])
 
-        # Get transaction account details
         ta = self.coordinator.data.get("transaction_accounts", {}).get(self.ta_id, {})
 
-        # Extract institution name from dict
         institution_data = ta.get("institution", {})
         if isinstance(institution_data, dict):
             institution_name = institution_data.get("title")
         else:
             institution_name = str(institution_data) if institution_data else None
 
-        # Get currency and symbol
         currency_code = ta.get("currency_code")
         currency_symbol = None
         if currency_code:
@@ -233,7 +339,6 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
             "transactions": [],
         }
 
-        # Add last 20 transactions with amount, payee, date, and ID
         for transaction in transactions[:20]:
             transaction_data = {
                 "id": transaction.get("id"),
@@ -242,11 +347,9 @@ class PocketSmithTransactionHistorySensor(CoordinatorEntity, SensorEntity):
                 "date": transaction.get("date"),
             }
 
-            # Add optional fields if available
             if transaction.get("memo"):
                 transaction_data["memo"] = transaction.get("memo")
 
-            # Check category - it might be None instead of a dict
             category = transaction.get("category")
             if category and isinstance(category, dict) and category.get("title"):
                 transaction_data["category"] = category.get("title")
@@ -269,7 +372,6 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         """Initialize the uncategorized transactions sensor."""
         super().__init__(coordinator)
-        # Include username in unique_id to prevent clashes between instances
         self._attr_unique_id = "{}_{}_uncategorized_transactions".format(DOMAIN, coordinator.username)
         self._attr_name = "PocketSmith {} Uncategorized Transactions".format(coordinator.username)
 
@@ -288,7 +390,6 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
         transactions_by_account = self.coordinator.data.get("transactions", {})
         for ta_id, transactions in transactions_by_account.items():
             for transaction in transactions:
-                # Check if transaction has no category
                 category = transaction.get("category")
                 if not category or (isinstance(category, dict) and not category.get("title")):
                     total_uncategorized += 1
@@ -308,11 +409,9 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
         transaction_accounts = self.coordinator.data.get("transaction_accounts", {})
 
         for ta_id, transactions in transactions_by_account.items():
-            # Get account details
             ta = transaction_accounts.get(ta_id, {})
             account_name = ta.get("name", "account_{}".format(ta_id))
 
-            # Extract institution name from dict
             institution_data = ta.get("institution", {})
             if isinstance(institution_data, dict):
                 institution = institution_data.get("title", "unknown")
@@ -325,7 +424,6 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
             uncategorized_ids = []
 
             for transaction in transactions:
-                # Check if transaction has no category
                 category = transaction.get("category")
                 if not category or (isinstance(category, dict) and not category.get("title")):
                     uncategorized_count += 1
@@ -333,13 +431,12 @@ class PocketSmithUncategorizedSensor(CoordinatorEntity, SensorEntity):
                     if transaction_id:
                         uncategorized_ids.append(transaction_id)
 
-            # Only add to attributes if there are uncategorized transactions
             if uncategorized_count > 0:
                 attributes["by_account"][account_key] = {
                     "count": uncategorized_count,
                     "institution": institution,
                     "account_name": account_name,
-                    "transaction_ids": uncategorized_ids[:10],  # Last 10 uncategorized
+                    "transaction_ids": uncategorized_ids[:10],
                 }
                 attributes["total_uncategorized"] += uncategorized_count
 

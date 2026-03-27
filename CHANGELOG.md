@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-03-27
+
+### Added
+- **Feed Status sensors** (`sensor.pocketsmith_{username}_{institution}_{account}_feed_status`) — one per feed-connected account
+  - State is the raw feed status from the PocketSmith API (`active`, `error`, `needs_reauthorization`, `disabled`, `unknown`)
+  - Dynamic icon: green check (active), red alert (error/needs_reauthorization), grey minus (disabled)
+  - Attributes: `feed_name`, `feed_status`, `last_refreshed_at`, `hours_since_refresh`, `account_name`, `institution_name`, `account_type`
+  - `hours_since_refresh` is pre-calculated so automations can use a simple numeric threshold without date arithmetic
+  - Only created for accounts that have an active feed connection; offline/manual accounts are unaffected
+- Feed status attributes on **Account Balance sensors**: `feed_name`, `feed_status`, and `last_refreshed_at` are now also surfaced as attributes on the balance sensor for dashboard convenience
+- New `pocketsmith_feed_alerts.yaml` automation file with two ready-to-use automations:
+  - Alert when any feed status is not `active`
+  - Alert when any feed has not refreshed in more than 24 hours
+
 ## [1.0.1] - 2026-03-08
 
 ### Added

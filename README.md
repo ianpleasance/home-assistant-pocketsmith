@@ -163,6 +163,40 @@ attributes:
       transaction_ids: [23456, 23457, 23458, 23459, 23460, 23461, 23462]
 ```
 
+### Feed Status Sensors
+
+**Entity ID Format**: `sensor.pocketsmith_{username}_{institution}_{account_name}_feed_status`
+
+For example:
+- `sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status`
+- `sensor.pocketsmith_ianpleasance_monzo_personal_account_feed_status`
+
+**Note**: These sensors are only created for accounts connected via a live bank feed. Offline or manually-managed accounts will not have a feed status sensor.
+
+**State**: The feed status string from the PocketSmith API:
+
+| Value | Meaning |
+|---|---|
+| `active` | Feed is connected and syncing normally |
+| `needs_reauthorization` | Bank requires you to re-authenticate (e.g. Salt Edge 90-day expiry) |
+| `error` | Feed encountered an error during last sync |
+| `disabled` | Feed has been disabled |
+| `unknown` | Status field not present in API response |
+
+**Attributes**:
+- `feed_name`: Name of the feed provider (e.g. Salt Edge, Yodlee, Plaid)
+- `feed_status`: Current feed status (mirrors the sensor state)
+- `last_refreshed_at`: ISO 8601 timestamp of the last successful feed sync
+- `hours_since_refresh`: Hours elapsed since last refresh (float, pre-calculated for use in automations)
+- `account_name`: Name of the account
+- `institution_name`: Name of the financial institution
+- `account_type`: Type of account
+- `last_updated`: Timestamp of last HA update
+
+### Feed Status on Balance Sensors
+
+The `feed_name`, `feed_status`, and `last_refreshed_at` attributes are also available on the **Account Balance sensor** for convenience, so a single dashboard card can show both the balance and whether the feed is healthy.
+
 ## Supported Currencies
 
 The integration includes currency symbols for 33 major currencies:
@@ -281,6 +315,49 @@ automation:
             uncategorized transactions in your recent activity. Please review and categorize them.
 ```
 
+### Feed Status Alert
+
+```yaml
+automation:
+  - alias: "PocketSmith Feed Not Active"
+    trigger:
+      - platform: state
+        entity_id: sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status
+    condition:
+      - condition: not
+        conditions:
+          - condition: state
+            entity_id: sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status
+            state: active
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "⚠️ PocketSmith Feed Problem"
+          message: >
+            {{ state_attr('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status', 'institution_name') }}
+            {{ state_attr('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status', 'account_name') }}
+            feed status: {{ states('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status') }}.
+            Go to PocketSmith → Manage → Feeds to resolve.
+
+  - alias: "PocketSmith Feed Stale"
+    trigger:
+      - platform: time_pattern
+        hours: "/1"
+    condition:
+      - condition: template
+        value_template: >
+          {{ state_attr('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status', 'hours_since_refresh') | float(0) > 24 }}
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "🕐 PocketSmith Feed Stale"
+          message: >
+            NatWest Primary Account hasn't refreshed for
+            {{ state_attr('sensor.pocketsmith_ianpleasance_natwest_primary_account_feed_status', 'hours_since_refresh') | round(0) | int }} hours.
+```
+
+A more complete multi-account version of these automations is included in `pocketsmith_feed_alerts.yaml`.
+
 ## Troubleshooting
 
 ### API Connection Issues
@@ -290,6 +367,17 @@ If you experience connection issues:
 1. Verify your API key is correct
 2. Check that you have an active internet connection
 3. Ensure PocketSmith API is accessible (check [status.pocketsmith.com](https://status.pocketsmith.com))
+
+### Feed Status Shows 'needs_reauthorization' or 'error'
+
+1. Log in to PocketSmith and go to **Manage → Feeds**
+2. Look for any connections showing errors or a "Try Again" / "Authorise" button
+3. For Salt Edge (UK/EU) feeds, reauthorisation is required every 90 days by regulation — this is expected behaviour
+4. After reauthorising in PocketSmith, the feed status sensor in HA will update on the next coordinator poll (within 5 minutes by default)
+
+### Feed Status Sensor Not Created
+
+Feed status sensors are only created for accounts that return a `feed_name` or `feed_status` field from the PocketSmith API. Offline accounts (manual imports only) will not have a feed status sensor — this is expected.
 
 ### Sensors Not Updating
 
