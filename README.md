@@ -1,6 +1,8 @@
 # PocketSmith Integration for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-c62828.svg)](https://github.com/hacs/integration)
+[![version](https://img.shields.io/github/v/release/ianpleasance/home-assistant-pocketsmith?display_name=tag&sort=semver&color=blue&label=version)](https://github.com/ianpleasance/home-assistant-pocketsmith/releases/latest)
+[![license](https://img.shields.io/github/license/ianpleasance/home-assistant-pocketsmith)](LICENSE)
 
 This custom integration allows you to integrate your PocketSmith accounts into Home Assistant.
 
